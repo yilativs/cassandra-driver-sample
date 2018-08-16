@@ -1,9 +1,14 @@
 package org.foo;
 
+import static com.datastax.driver.core.querybuilder.QueryBuilder.eq;
+import static java.util.Arrays.asList;
+import static org.junit.Assert.assertEquals;
+
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -20,6 +25,7 @@ import org.junit.Test;
 
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.HostDistance;
 import com.datastax.driver.core.PoolingOptions;
 import com.datastax.driver.core.PreparedStatement;
@@ -29,6 +35,9 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SocketOptions;
 import com.datastax.driver.core.policies.RoundRobinPolicy;
+import com.datastax.driver.core.querybuilder.BuiltStatement;
+import com.datastax.driver.core.querybuilder.Insert;
+import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.extras.codecs.jdk8.InstantCodec;
 
 public class CassandraIT {
@@ -264,6 +273,22 @@ public class CassandraIT {
 		Assert.assertTrue(resultSetAfterDeletion.isExhausted());
 		//same as above, though less efficient
 		Assert.assertNull(resultSetAfterDeletion.one());
+	}
+
+	@Test
+	public void executesQueryViaQueryBuilder() {
+		UUID uuid = UUID.randomUUID();
+		Instant timesamp = Instant.now();
+		String description = "foo text";
+		String[] queryColumnts = { "id", "datetime", "description" };
+		BuiltStatement insertStatement = QueryBuilder.insertInto("fooKeySpace", "fooTable").values(asList(queryColumnts), asList(uuid, timesamp, description));
+		session.execute(insertStatement.setConsistencyLevel(ConsistencyLevel.LOCAL_ONE));
+
+		BuiltStatement selectStatement = QueryBuilder.select(queryColumnts).from("fooKeySpace", "fooTable").where(eq("id", uuid));
+		List<Row> results = session.execute(selectStatement.setConsistencyLevel(ConsistencyLevel.LOCAL_ONE)).all();
+		assertEquals(1, results.size());
+		assertEquals(description, results.get(0).getString(2));
+
 	}
 
 }
