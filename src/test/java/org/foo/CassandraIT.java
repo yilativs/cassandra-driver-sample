@@ -9,8 +9,12 @@ import java.util.UUID;
 
 import javax.naming.ConfigurationException;
 
+import org.apache.thrift.transport.TTransportException;
+import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -33,11 +37,16 @@ public class CassandraIT {
 	private static Session session;
 
 	@BeforeClass
-	public static void beforeClassCreateClusterConnectionAndTable() throws ConfigurationException, IOException, InterruptedException {
+	public static void beforeClassCreateClusterConnectionAndTable() throws IOException, InterruptedException, ConfigurationException, TTransportException {
+		startEmbeddedCassandraUnit();
 		setupCluster();
 		setupKeyspace();
 	}
-	
+
+	private static void startEmbeddedCassandraUnit() throws ConfigurationException, TTransportException, IOException {
+		EmbeddedCassandraServerHelper.startEmbeddedCassandra("cassandra.yaml"); //does nothing if already started
+	}
+
 	private static void setupCluster() throws InterruptedException {
 		PoolingOptions poolingOptions = new PoolingOptions();
 		poolingOptions
@@ -46,13 +55,12 @@ public class CassandraIT {
 				.setCoreConnectionsPerHost(HostDistance.REMOTE, 2)
 				.setMaxConnectionsPerHost(HostDistance.REMOTE, 4);
 
-		
-		Thread.sleep(25_000);//FIXME find out how to make driver wait till cassandra server starts via setConnectTimeoutMillis
+		Thread.sleep(15_000);//FIXME find out how to make driver wait till cassandra server starts via setConnectTimeoutMillis
 		SocketOptions socketOptions = new SocketOptions();
-		socketOptions.setConnectTimeoutMillis(60_000);
+		//		socketOptions.setConnectTimeoutMillis(60_000);
 		cluster = Cluster.builder()
 				.withClusterName("Test Cluster")//default cluster
-				.withCredentials("cassandra", "cassandra1")//default credentials
+				.withCredentials("cassandra", "cassandra")//default credentials
 				.withCompression(ProtocolOptions.Compression.SNAPPY)//this is protocol compression, not storage compression, hence it's ok to use fast less memory consuming compression
 				.withPoolingOptions(poolingOptions)
 				.withLoadBalancingPolicy(new RoundRobinPolicy())//https://docs.datastax.com/en/developer/java-driver/3.1/manual/load_balancing/\
@@ -64,7 +72,6 @@ public class CassandraIT {
 		cluster.getConfiguration().getCodecRegistry().register(InstantCodec.instance);//https://docs.datastax.com/en/developer/java-driver/3.5/manual/custom_codecs/extras/
 	}
 
-
 	private static void setupKeyspace() {
 		session = cluster.connect();
 		//TODO https://docs.datastax.com/en/cql/3.1/cql/cql_reference/create_keyspace_r.html
@@ -72,6 +79,14 @@ public class CassandraIT {
 		//can be NetworkTopologyStrategy instead of SimpleStrategy
 		//		session.execute("CREATE KEYSPACE IF NOT EXISTS fooKeySpace WITH replication = {'class' : 'NetworkTopologyStrategy', 'dc1' : 3, 'dc2' : 2}");
 
+	}
+
+	@Before
+	public void beforeTest() {
+		createTable();
+	}
+
+	private void createTable() {
 		session.execute("CREATE TABLE IF NOT EXISTS fooKeySpace.fooTable (" +
 				"id UUID, " +
 				"dateTime timestamp, " +
@@ -80,6 +95,15 @@ public class CassandraIT {
 				") " +
 				"WITH default_time_to_live=3 and " + // ttl=3 seconds
 				"compression = { 'sstable_compression' : 'LZ4Compressor', 'chunk_length_kb' : 128 }");//options  are DeflateCompressor,SnappyCompressor,LZ4Compressor  , see https://docs.datastax.com/en/cassandra/2.1/cassandra/operations/ops_config_compress_t.html
+	}
+
+	@After
+	public void afterTest() {
+		dropTable();
+	}
+
+	private void dropTable() {
+		session.execute("DROP TABLE fooKeySpace.fooTable");//options  are DeflateCompressor,SnappyCompressor,LZ4Compressor  , see https://docs.datastax.com/en/cassandra/2.1/cassandra/operations/ops_config_compress_t.html
 	}
 
 	@AfterClass
