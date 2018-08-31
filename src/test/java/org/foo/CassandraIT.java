@@ -36,7 +36,6 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SocketOptions;
 import com.datastax.driver.core.policies.RoundRobinPolicy;
 import com.datastax.driver.core.querybuilder.BuiltStatement;
-import com.datastax.driver.core.querybuilder.Insert;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.extras.codecs.jdk8.InstantCodec;
 
@@ -53,7 +52,7 @@ public class CassandraIT {
 	}
 
 	private static void startEmbeddedCassandraUnit() throws ConfigurationException, TTransportException, IOException {
-		EmbeddedCassandraServerHelper.startEmbeddedCassandra("cassandra.yaml"); //does nothing if already started
+		EmbeddedCassandraServerHelper.startEmbeddedCassandra("cassandra.yaml",5000); //does nothing if already started
 	}
 
 	private static void setupCluster() throws InterruptedException {
@@ -64,7 +63,7 @@ public class CassandraIT {
 				.setCoreConnectionsPerHost(HostDistance.REMOTE, 2)
 				.setMaxConnectionsPerHost(HostDistance.REMOTE, 4);
 
-		Thread.sleep(15_000);//FIXME find out how to make driver wait till cassandra server starts via setConnectTimeoutMillis
+		Thread.sleep(10_000);//FIXME find out how to make driver wait till cassandra server starts via setConnectTimeoutMillis
 		SocketOptions socketOptions = new SocketOptions();
 		//		socketOptions.setConnectTimeoutMillis(60_000);
 		cluster = Cluster.builder()

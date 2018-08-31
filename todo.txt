@@ -1,0 +1,82 @@
++setup cassandra via docker
++add if exit table creation + with default tll and replication factor
++add insert 
++add update
++add delete
++add insert with with TTL
++add setting consistency level
++add select by primary key
++add compaction strategy
++add consistency level https://docs.datastax.com/en/cassandra/3.0/cassandra/dml/dmlAboutDataConsistency.html
+
+--
++add authentication, see 
+http://www.tothenew.com/blog/cassandra-authentication-and-create-user/ 
+https://stackoverflow.com/questions/34711811/cannot-connect-java-client-to-cassandra-with-password-authentication-enabled
+
+add authorization
+
+build  cluster
+
+
++to monitor cluster - nodetool netstats + jmx
+
+to add node (see Bootstrap)http://cassandra.apache.org/doc/latest/operating/topo_changes.html#bootstrap
+to remove node call-  nodetool decommission to a live node, or nodetool removenode to a dead node (see Removing nodes) http://cassandra.apache.org/doc/latest/operating/topo_changes.html#removing-nodes
+
+to clean data after range moves call nettool cleanup http://cassandra.apache.org/doc/latest/operating/topo_changes.html#cleanup-data-after-range-movements
+
+
+---
+figure out: 
++ what happens if cassandra can not find enough servers to put data (e.g. replication factor is 3) 
+https://docs.datastax.com/en/dse/5.1/dse-arch/datastax_enterprise/dbInternals/dbIntClientRequestsWrite.html
+
+
+how to backup data 
+how to get data from backup
+
+if data is never changed does it ever make sense to have read consistency more than 1?
+
+if any repair tools should be started manually
+https://docs.datastax.com/en/cassandra/3.0/cassandra/operations/opsRepairNodesTOC.html
+https://docs.datastax.com/en/dse/5.1/dse-admin/datastax_enterprise/operations/opsRepairNodesTOC.html
+--
+think about
+ DateTieredCompactionStrategy  - timestamp_resolution - if data are not often changed, consider if picking the largest improves speed or size
+ caching - none because we don't need any cached data in a write mostly scenario
+ commit log sync
+ trace https://docs.datastax.com/en/cassandra/3.0/cassandra/dml/dmlCLDiscovery.html
+ 
+ --
+https://docs.datastax.com/en/cql/3.3/cql/cql_reference/cqlCreateTable.html#tabProp__cqlTableDefaultTTL
+https://docs.datastax.com/en/cql/3.1/cql/cql_reference/compressSubprop.html
+https://docs.datastax.com/en/cassandra/3.0/cassandra/operations/opsConfigCompress.html
+compression - LZ4Compressor, because data is supposed to be XML and we should achive good results
+--
+add spring-data-cassandra see https://www.baeldung.com/spring-data-cassandra-tutorial
+--
+
+ask about
+benefits over hbase (solutions look pretty much the same).
+does compression compresses only meta information or it compresses data as well? - data is compressed
+--ttl only for table
+--compression only per table
+--workflow separation
+--xml 5 times compression, 1gb per node of compressed data
+--replication 2 vs 1 (use qurum)
+
++is it possible to use different DC in a cluster for different operations? E.g. use DC2 only for analytical queries. -yes
++is it possible to use different compression for different DC? - no
++is it possible to enable cache for a particular DC? -yes 
++is it possible to setup compression at specific hours? -no
+ TOOD never use Snapy/ for fast access LZ4 for slow Deflate
+ 
+ TODO create 2 tables, one for recent data one for old data (with different TTL and compression)
+ 
+ --
+ data stax - tired storage
+ hot data can be stored on ssd drive, while historical data can be stored on less expensive drives
+
+ --
+ secondary index range search is not supported
